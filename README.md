@@ -1,5 +1,7 @@
 # RDP 网络监视器 (RdpNetMonitor)
 
+[English version](#english) · 中文版如下
+
 一个运行在 **RDP 服务端（被控端）** 的实时网络监视小工具，用于弥补 Windows 自带 RDP 诊断对话框的三点不足：
 
 1. **官方对话框强制置顶、遮挡桌面** → 本工具是普通窗口，可最小化/隐藏到托盘，置顶和鼠标穿透均为可选开关；
@@ -74,6 +76,92 @@ rdp-netmon/
 ├── docs/NOTES.md       # 实现笔记与排坑记录
 ├── CHANGELOG.md        # 版本历史
 └── logs/               # 运行日志（不入库）
+```
+
+## License
+
+[MIT](LICENSE)
+
+---
+
+<a id="english"></a>
+
+# RDP Network Monitor (RdpNetMonitor)
+
+A real-time network monitoring tool that runs on the **RDP server (controlled end)**, addressing three shortcomings of the built-in Windows RDP diagnostic dialog:
+
+1. **The official dialog is always-on-top and blocks the desktop** → this tool is a normal window: minimizable, hide-to-tray capable, with optional topmost and click-through toggles;
+2. **Too few metrics** → provides TCP/UDP throughput, loss/retransmission, FEC, UDP share, multi-layer RTT (TCP estats / RemoteFX counters / ICMP) and more;
+3. **Runtime data cannot be kept** → per-second metrics are written to CSV, runtime events to log files, and the log panel supports selection and copy.
+
+## Features
+
+- Automatic role detection: someone connecting in → server mode; this machine dialing out → client mode
+- Real-time metrics: remote IP, client name/OS build (WTS API), session ID, UDP negotiated/active state, TCP 3389 and RDP-UDP throughput (rate + cumulative bytes), loss rate, retransmission rate, FEC rate, UDP traffic share, bandwidth estimates
+- RTT selection chain: TCP estats (most accurate, requires admin) → RemoteFX performance counter (cross-checked against ICMP; distorted idle values are flagged stale and demoted) → ICMP ping
+- Dual charts: throughput curve + latency curve, legend auto-wraps by measured width
+- Log panel: mouse multi-select, `Ctrl+C` copy selection, `Ctrl+A` select all, right-click context menu to copy selected/all
+- On-disk data: `logs/rdpnet_YYYYMMDD_HHMMSS.csv` (per-second metrics) + `logs/events_YYYYMMDD_HHMMSS.log` (runtime events)
+- Tray support: hide to tray, show main window, disable click-through (shown while active), copy diagnostics, exit
+- Single-instance (global Mutex)
+
+## Requirements
+
+- Windows 10/11 (x64; x86 untested)
+- .NET Framework 4.8 (in-box on Win10 22H2, no install needed)
+- **Enabling TCP estats per-connection statistics requires administrator privileges** (`SetPerTcpConnectionEStats`). When run without admin, all other metrics work normally; estats is unavailable and noted in the log
+
+## Build
+
+Toolchain: C# (C# 5 syntax only) + .NET Framework 4.8 + WinForms, compiled with the in-box csc.exe — no Visual Studio/NuGet dependencies (see [docs/NOTES.md](docs/NOTES.md)).
+
+Zero third-party dependencies; compile with the system's own C# compiler:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File build.ps1
+```
+
+Or double-click `启动监视器.bat` (auto-builds first if the exe is missing).
+
+The output is a single file `RdpNetMonitor.exe` (AnyCPU, /optimize+). Only C# 5 syntax is supported (matching the in-box csc version).
+
+## Usage
+
+1. **Run as administrator** is recommended (required for estats collection; also avoids interference from lower-privileged processes)
+2. The program auto-detects the connection state and switches modes; no configuration needed
+3. Top-right buttons: topmost / click-through / copy diagnostics / hide to tray / exit
+4. While click-through is on, the window is semi-transparent and ignores clicks; restore it via the tray menu item "取消鼠标穿透" (disable click-through)
+5. Log panel: drag or Shift multi-select → `Ctrl+C` to copy; `Ctrl+A` to select all; right-click menu also available
+6. Log files live in `logs\` next to the exe
+
+## Metric Data Sources
+
+| Metric | Source |
+| --- | --- |
+| RDP-TCP / RDP-UDP throughput, loss, retransmissions, FEC | RemoteFX Network performance counters (instance `RDP-tcp 1`) and UDP counters |
+| TCP connection-level RTT (SampleRtt, RttVar, retransmissions, timeouts, congestion signals) | TCP Extended Statistics (estats) PATH structure; requires admin |
+| TCP RTT (fallback) | RemoteFX TCP RTT counter; distorted when idle (e.g. stuck at 400 ms) — cross-checked against ICMP, flagged stale and demoted |
+| ICMP RTT | Ping to the remote IP |
+| Client name/build/session | WTS API (WTSEnumerateSessions / WTSQuerySessionInformation) |
+| TCP connection table (local port 3389) | GetExtendedTcpTable |
+
+## Known Limitations
+
+- RemoteFX performance counters exist only after an RDP session is established
+- estats collection is per-connection; after a reconnect it must be re-enabled (the program does this automatically)
+- Details in [docs/NOTES.md](docs/NOTES.md)
+
+## Directory Layout
+
+```
+rdp-netmon/
+├── RdpMonitorCore.cs   # data layer: perf counters, TCP table, estats, WTS, ICMP
+├── RdpNetMonitor.cs    # UI layer: window, charts, log, tray
+├── build.ps1           # build script (in-box csc.exe)
+├── 启动监视器.bat       # one-click build & run
+├── docs/NOTES.md       # implementation notes and pitfalls
+├── CHANGELOG.md        # version history
+└── logs/               # runtime logs (not committed)
 ```
 
 ## License
