@@ -63,9 +63,17 @@ estats 按类型独立开关：`TcpConnectionEstatsData = 1`、`TcpConnectionEst
 - **BeginInvoke 丢失**：监控线程在控件句柄创建前 BeginInvoke 会被丢弃 → 事件先入队（lock 保护），UI 定时器消费队列
 - **提权重编译 CS0016**：运行中的 exe 被锁，重编译失败；需先结束进程再编译（低权限 taskkill 无法结束提权实例，需提权结束）
 
-## 五、构建约定
+## 五、语言环境与构建约定
 
-- 使用系统自带 `C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe`，`/out`、`/target` 必须放在源文件之前
-- 仅 C# 5 语法（无字符串插值、无 null 条件运算符等）
-- 单实例 Mutex：`Local\RdpNetMonitor.SingleInstance`
-- `--selftest N` 分支在 Mutex 获取**之前**运行，输出 `logs/selftest.json`（用于无 GUI 自检）
+本项目采用的开发/编译环境：
+
+- **语言**：C#，仅使用 C# 5 语法（受编译器版本限制，无字符串插值、无 null 条件运算符等）
+- **运行时框架**：.NET Framework 4.8（Win10 22H2 系统自带，无需安装）
+- **编译器**：系统自带 `C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe`（x64；32 位系统为 `Framework\` 目录），不使用 Visual Studio、MSBuild 或 NuGet
+- **UI 库**：WinForms（System.Windows.Forms / System.Drawing）
+- **引用程序集**：仅 System.dll、System.Core.dll、System.Drawing.dll、System.Windows.Forms.dll 四个框架程序集，零第三方依赖
+- **编译参数**：`/nologo /target:winexe /platform:anycpu /optimize+`；注意 `/out`、`/target` 必须放在源文件之前
+- **构建脚本**：build.ps1（调用 csc）+ 启动监视器.bat（exe 不存在时自动构建再启动）
+- **选型理由**：目标机器是 RDP 服务器、没有安装开发工具，.NET Framework 4.8 + csc 是开箱即用的组合，产物为单个可独立分发的 exe。代价是语法停留在 C# 5，且 P/Invoke 声明需格外小心（estats 1784 问题即与此相关）
+- **单实例 Mutex**：`Local\RdpNetMonitor.SingleInstance`
+- **自检分支**：`--selftest N` 在 Mutex 获取**之前**运行，输出 `logs/selftest.json`（用于无 GUI 自检）

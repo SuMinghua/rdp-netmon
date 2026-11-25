@@ -25,6 +25,8 @@
 
 ## 构建
 
+开发环境：C#（仅 C# 5 语法）+ .NET Framework 4.8 + WinForms，使用系统自带 csc.exe 编译，无 Visual Studio/NuGet 依赖（详见 [docs/NOTES.md](docs/NOTES.md)）。
+
 零第三方依赖，直接使用系统自带的 C# 编译器：
 
 ```powershell
